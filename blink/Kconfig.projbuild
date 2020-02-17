@@ -1,0 +1,32 @@
+menu "Blink Configuration"
+
+    config BLINK_GPIO_1
+        int "Blink GPIO number 1"
+        range 0 34
+        default 5
+        help
+            GPIO number (IOxx) to blink on and off.
+
+            Some GPIOs are used for other purposes (flash connections, etc.) and cannot be used to blink.
+
+            GPIOs 35-39 are input-only so cannot be used as outputs.
+
+    config BLINK_GPIO_2
+        int "Blink GPIO number 2"
+        range 0 34
+        default 5
+        help
+            GPIO number (IOxx) to blink on and off.
+
+            Some GPIOs are used for other purposes (flash connections, etc.) and cannot be used to blink.
+
+            GPIOs 35-39 are input-only so cannot be used as outputs.
+
+    config TASK_STACKSIZE
+        int "Task stack size"
+        range 1000 2048
+        default 1792
+        help
+            Stack size for each of the both tasks.
+
+endmenu
