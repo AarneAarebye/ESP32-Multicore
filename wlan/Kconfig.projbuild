@@ -1,0 +1,31 @@
+menu "## Task Configuration"
+
+    config WLAN_TASK_0_STACKSIZE
+        int "WLAN: Task 0 stack size"
+        default 2048
+        help
+            Stack size for task 0.
+
+    config WLAN_TASK_1_STACKSIZE
+        int "WLAN: Task 1 stack size"
+        default 2048
+        help
+            Stack sizef for task 1.
+
+endmenu
+
+menu "## WLAN Configuration"
+
+    config WLAN_SSID
+        string "WLAN SSID (Name of the WLAN)"
+        default "MY_WLAN_SSID"
+        help
+            Name of the WLAN network to connect to.
+
+    config WLAN_PWD
+        string "WLAN Password"
+        default "MY_WLAN_PASSWORD"
+        help
+            Password of the WLAN network to connect to.
+
+endmenu
