@@ -1,4 +1,4 @@
-menu "Blink Configuration"
+menu "## Blink Configuration"
 
     config BLINK_GPIO_1
         int "Blink GPIO number 1"
@@ -21,12 +21,22 @@ menu "Blink Configuration"
             Some GPIOs are used for other purposes (flash connections, etc.) and cannot be used to blink.
 
             GPIOs 35-39 are input-only so cannot be used as outputs.
+endmenu
 
-    config TASK_STACKSIZE
-        int "Task stack size"
+menu "## Task Configuration"
+
+    config BLINK_TASK_0_STACKSIZE
+        int "Blink: Task 0 stack size"
         range 1000 2048
         default 1792
         help
-            Stack size for each of the both tasks.
+            Stack size for task 0.
+
+    config BLINK_TASK_1_STACKSIZE
+        int "Blink: Task 1 stack size"
+        range 1000 2048
+        default 1792
+        help
+            Stack size for task 1.
 
 endmenu
