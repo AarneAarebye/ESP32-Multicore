@@ -28,8 +28,11 @@ TaskHandle_t Task1, Task2;
 SemaphoreHandle_t mutexReceive;
 
 /*** you may use section "Blink Configuration" in Kconfig.projbuild file or define it here ***/
-#ifndef CONFIG_TASK_STACKSIZE
-#define CONFIG_TASK_STACKSIZE 1792 // actually something between 1536 and 1792
+#ifndef CONFIG_TASK_0_STACKSIZE
+#define CONFIG_TASK_0_STACKSIZE 1792 // actually something between 1536 and 1792
+#endif
+#ifndef CONFIG_TASK_1_STACKSIZE
+#define CONFIG_TASK_1_STACKSIZE 1792 // actually something between 1536 and 1792
 #endif
 #ifndef CONFIG_BLINK_GPIO_1 
 #define CONFIG_BLINK_GPIO_1 0
@@ -91,8 +94,8 @@ void app_main()
   /* Create task on core 0 */
   xTaskCreatePinnedToCore(
     &codeForTask1,
-    "BLINK_1_Task",
-    CONFIG_TASK_STACKSIZE,
+    "BLINK_Task_0",
+    CONFIG_BLINK_TASK_0_STACKSIZE,
     NULL,
     1,
     &Task1,
@@ -103,8 +106,8 @@ void app_main()
   /* Create task on core 1 */
   xTaskCreatePinnedToCore(
     &codeForTask2,
-    "BLINK_2_Task",
-    CONFIG_TASK_STACKSIZE,
+    "BLINK_Task_1",
+    CONFIG_BLINK_TASK_1_STACKSIZE,
     NULL,
     1,
     &Task2,
