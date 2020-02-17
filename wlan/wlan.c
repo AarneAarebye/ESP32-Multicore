@@ -13,16 +13,7 @@
 #include "esp_event_loop.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
-/*
- * This blinks two LEDs independently and not synchronized. Both have other blink frequencies. 
- * The blink sketches run in two tasks and on two cores.
-- RGB LED ESP WROVER KIT 4.1:
-  -	GPIO0	Red
-  -	GPIO2	Green
-  -	GPIO4	Blue
-- Display Backlight:
-  - GPIO5 Display backlight
-*/
+
 static const char* TAG = "PlayGround";
 TaskHandle_t      Task0, Task1;
 SemaphoreHandle_t mutexReceive;
