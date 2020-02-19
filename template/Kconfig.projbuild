@@ -1,0 +1,15 @@
+menu "## Task Configuration"
+
+    config TASK_0_STACKSIZE
+        int "Task 0 stack size"
+        default 2048
+        help
+            Stack size for task 0.
+
+    config TASK_1_STACKSIZE
+        int "Task 1 stack size"
+        default 2048
+        help
+            Stack sizef for task 1.
+
+endmenu
