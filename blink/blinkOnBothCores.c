@@ -9,10 +9,8 @@
 #include <driver/gpio.h>
 #include "sdkconfig.h"
 #include "esp_system.h"
-#include "esp_wifi.h"
 #include "esp_event_loop.h"
-#include "esp_log.h"
-#include "nvs_flash.h"
+
 /*
  * This blinks two LEDs independently and not synchronized. Both have other blink frequencies. 
  * The blink sketches run in two tasks and on two cores.
@@ -28,17 +26,17 @@ TaskHandle_t Task1, Task2;
 SemaphoreHandle_t mutexReceive;
 
 /*** you may use section "Blink Configuration" in Kconfig.projbuild file or define it here ***/
-#ifndef CONFIG_TASK_0_STACKSIZE
-#define CONFIG_TASK_0_STACKSIZE 1792 // actually something between 1536 and 1792
+#ifndef CONFIG_BLINK_TASK_0_STACKSIZE
+#define CONFIG_BLINK_TASK_0_STACKSIZE 1792 // actually something between 1536 and 1792
 #endif
-#ifndef CONFIG_TASK_1_STACKSIZE
-#define CONFIG_TASK_1_STACKSIZE 1792 // actually something between 1536 and 1792
+#ifndef CONFIG_BLINK_TASK_1_STACKSIZE
+#define CONFIG_BLINK_TASK_1_STACKSIZE 1792 // actually something between 1536 and 1792
 #endif
 #ifndef CONFIG_BLINK_GPIO_1 
 #define CONFIG_BLINK_GPIO_1 0
 #endif
 #ifndef CONFIG_BLINK_GPIO_2 
-#define CONFIG_BLINK_GPIO_2 2 // LED_BUILTIN on ESP32 boards
+#define CONFIG_BLINK_GPIO_2 2 // 2 = LED_BUILTIN on ESP32 boards
 #endif
 
 int counter = 0;
@@ -101,8 +99,6 @@ void app_main()
     &Task1,
     0
   );
-  /* Provide some time for task creation */
-  vTaskDelay(pdMS_TO_TICKS(500));
   /* Create task on core 1 */
   xTaskCreatePinnedToCore(
     &codeForTask2,
