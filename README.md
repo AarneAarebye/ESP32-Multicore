@@ -7,4 +7,3 @@ This is the first extension of the template by BLE Provisioning
 ## playgrounds
 ### blink
 A simple synchronized multicore blink example
-
