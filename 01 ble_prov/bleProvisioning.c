@@ -26,7 +26,7 @@
 #define TASK_1_RESET_PERIOD_S    2
 #define TWDT_TIMEOUT_S           TASK_0_RESET_PERIOD_S  > TASK_1_RESET_PERIOD_S ? TASK_0_RESET_PERIOD_S + 1 : TASK_1_RESET_PERIOD_S + 1 
 
-static const char* TAG = "BleProv";
+static const char* TAG = "BleProvisioning";
 static TaskHandle_t task_handles[portNUM_PROCESSORS];
 SemaphoreHandle_t mutexReceive;
 
