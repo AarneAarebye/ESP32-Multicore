@@ -1,4 +1,4 @@
-set(COMPONENT_SRCS "BleProvisioning.c"
+set(COMPONENT_SRCS "bleProvisioning.c"
                    "app_prov.c"
                    "app_prov_handlers.c")
 set(COMPONENT_ADD_INCLUDEDIRS ".")
