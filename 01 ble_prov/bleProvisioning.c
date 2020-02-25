@@ -12,6 +12,7 @@
 #include <esp_event.h>
 #include <esp_log.h>
 #include <nvs_flash.h>
+#include <nvs.h>
 
 #include <lwip/err.h>
 #include <lwip/sys.h>
@@ -22,14 +23,14 @@
 
 
 // TWDT (Task Watch Dog Timer)
-#define TASK_0_RESET_PERIOD_S    2
-#define TASK_1_RESET_PERIOD_S    2
-#define TWDT_TIMEOUT_S           TASK_0_RESET_PERIOD_S  > TASK_1_RESET_PERIOD_S ? TASK_0_RESET_PERIOD_S + 1 : TASK_1_RESET_PERIOD_S + 1 
+#define TASK_0_RESET_PERIOD_S    2 // CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0
+#define TASK_1_RESET_PERIOD_S    2 // CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1
+#define TWDT_TIMEOUT_S           TASK_0_RESET_PERIOD_S  > TASK_1_RESET_PERIOD_S ? TASK_0_RESET_PERIOD_S + 1 : TASK_1_RESET_PERIOD_S + 1 // CONFIG_ESP_TASK_WDT_TIMEOUT_S
 
-static const char* TAG = "BleProvisioning";
-static TaskHandle_t task_handles[portNUM_PROCESSORS];
-SemaphoreHandle_t mutexReceive;
-
+static const char* TAG = "bleProvisioning";
+static TaskHandle_t      task_handles[portNUM_PROCESSORS];
+static SemaphoreHandle_t mutexReceive;
+ 
 /*** you may use section "##Task Configuration" in Kconfig.projbuild file or define it here ***/
 #ifndef CONFIG_TASK_0_STACKSIZE
 #define CONFIG_TASK_0_STACKSIZE 2048
@@ -55,7 +56,6 @@ SemaphoreHandle_t mutexReceive;
         abort();                                \
     }                                           \
 })
-
 static void start_ble_provisioning(void);
 
 static void event_handler(void* arg, esp_event_base_t event_base,
@@ -155,7 +155,7 @@ void codeForTask0( void * parameter )
         vTaskDelay(pdMS_TO_TICKS(TASK_0_RESET_PERIOD_S * 1000));
     }
 }
-void codeForTask1( void * parameter )
+void codeForTask1( void * parameter ) // receiver task
 {
     ESP_LOGD(TAG, "START: Task 1 @ Core %d", xPortGetCoreID());
     //Subscribe this task to TWDT, then check if it is subscribed
@@ -176,11 +176,11 @@ void createTasks() {
     ESP_LOGD(TAG, "Initialize or reinitialize TWDT");
     CHECK_ERROR_CODE(esp_task_wdt_init(TWDT_TIMEOUT_S, false), ESP_OK);
     //Subscribe Idle Tasks to TWDT if they were not subscribed at startup
-#ifndef CONFIG_TASK_WDT_CHECK_IDLE_TASK_CPU0
+#ifdef CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0
     ESP_LOGD(TAG, "Subscribing idle task on core %d", 0);
     esp_task_wdt_add(xTaskGetIdleTaskHandleForCPU(0));
 #endif
-#ifndef CONFIG_TASK_WDT_CHECK_IDLE_TASK_CPU1
+#ifdef CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1
     ESP_LOGD(TAG, "Subscribing idle task on core %d", 1);
     esp_task_wdt_add(xTaskGetIdleTaskHandleForCPU(1));
 #endif
@@ -220,43 +220,47 @@ void deleteTasks() {
         CHECK_ERROR_CODE(esp_task_wdt_delete(task_handles[i]), ESP_OK);     //Unsubscribe task from TWDT
         ESP_LOGD(TAG, "Unsubscribing task %d check", i);
         CHECK_ERROR_CODE(esp_task_wdt_status(task_handles[i]), ESP_ERR_NOT_FOUND);  //Confirm task is unsubscribed
-        ESP_LOGD(TAG, "Unsubscribing idle task on core %d", i);
-        CHECK_ERROR_CODE(esp_task_wdt_delete(xTaskGetIdleTaskHandleForCPU(i)), ESP_OK);     //Unsubscribe Idle Task from TWDT
-        ESP_LOGD(TAG, "Unsubscribing idle task %d check", i);
-        CHECK_ERROR_CODE(esp_task_wdt_status(xTaskGetIdleTaskHandleForCPU(i)), ESP_ERR_NOT_FOUND);      //Confirm Idle task has unsubscribed
+        if (i == 0) {
+#ifdef CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0
+            ESP_LOGD(TAG, "Unsubscribing idle task on core %d", i);
+            CHECK_ERROR_CODE(esp_task_wdt_delete(xTaskGetIdleTaskHandleForCPU(i)), ESP_OK);     //Unsubscribe Idle Task from TWDT
+            ESP_LOGD(TAG, "Unsubscribing idle task on core %d check", i);
+            CHECK_ERROR_CODE(esp_task_wdt_status(xTaskGetIdleTaskHandleForCPU(i)), ESP_ERR_NOT_FOUND);      //Confirm Idle task has unsubscribed
+#endif
+        }
+        if (i == 1) {
+#ifdef CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1
+            ESP_LOGD(TAG, "Unsubscribing idle task on core %d", i);
+            CHECK_ERROR_CODE(esp_task_wdt_delete(xTaskGetIdleTaskHandleForCPU(i)), ESP_OK);     //Unsubscribe Idle Task from TWDT
+            ESP_LOGD(TAG, "Unsubscribing idle task on core %d check", i);
+            CHECK_ERROR_CODE(esp_task_wdt_status(xTaskGetIdleTaskHandleForCPU(i)), ESP_ERR_NOT_FOUND);      //Confirm Idle task has unsubscribed
+#endif
+        }
     }
     ESP_LOGD(TAG, "Deinit TWDT after all tasks have unsubscribed");
-    ESP_LOGD(TAG, "Deinit ESP_OK");
     CHECK_ERROR_CODE(esp_task_wdt_deinit(), ESP_OK); // TWDT successfully deinitialized
-    ESP_LOGD(TAG, "Deinit ESP_OK");
     ESP_LOGD(TAG, "Deinit TWDT after all tasks have unsubscribed - check");
     CHECK_ERROR_CODE(esp_task_wdt_status(NULL), ESP_ERR_INVALID_STATE);     //Confirm TWDT has been deinitialized
     ESP_LOGD(TAG, "Delete the mutex");
-    vSemaphoreDelete( mutexReceive );
+    vSemaphoreDelete(mutexReceive);
 }
 void initNetworkAndProvisioning() {
-    ESP_LOGD(TAG, "Initialize TCP/IP adapter");
-    /* Initialize networking stack */
+    ESP_LOGD(TAG, "Initialize networking stack");
     ESP_ERROR_CHECK(esp_netif_init());
-
-    /* Create default event loop needed by the
-     * main app and the provisioning service */
+    ESP_LOGD(TAG, "Create default event loop needed by the");
+    ESP_LOGD(TAG, "main app and the provisioning service");
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-    /* Initialize NVS needed by Wi-Fi */
-    
+    ESP_LOGD(TAG, "Initialize NVS needed by Wi-Fi");
     ESP_ERROR_CHECK(nvs_flash_init());
-
-    /* Initialize Wi-Fi including netif with default config */
+    ESP_LOGD(TAG, "Initialize Wi-Fi including netif with default config");
     esp_netif_create_default_wifi_sta();
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    /* Check if device is provisioned */
+    ESP_LOGD(TAG, "Check if device is provisioned");
     bool provisioned;
     if (app_prov_is_provisioned(&provisioned) != ESP_OK) {
         ESP_LOGE(TAG, "Error getting device provisioning state");
-        return;
+        abort();
     }
     if (provisioned == false) {
         /* If not provisioned, start provisioning via BLE */
@@ -268,16 +272,8 @@ void initNetworkAndProvisioning() {
         wifi_init_sta();
     }
 }
-void stopNetworkAndProvisioning() {
-/****
-    bool provisioned;
-    ESP_LOGD(TAG, "Check if device is provisioned");
-    CHECK_ERROR_CODE(app_prov_is_provisioned(&provisioned), ESP_OK);
-    if (!provisioned) {
-        ESP_LOGD(TAG, "Not provisioned ==> Stop provisioning");
-        app_prov_stop_service();
-    } else { }
-****/
+void deInitNetworkAndProvisioning() {
+    app_prov_stop_ble_provisioning();
     wifi_stop_sta(); // ignore "not initialized"
 }
 void app_main()
@@ -286,18 +282,16 @@ void app_main()
     // esp_log_level_set(TAG, ESP_LOG_INFO); 
     esp_log_level_set(TAG, ESP_LOG_DEBUG);
     ESP_LOGI(TAG, "Start Up");
-    ESP_LOGD(TAG, "Starting tasks and Task Watch Dog");
-    createTasks();
     ESP_LOGD(TAG, "Initialize networking stack");
     initNetworkAndProvisioning();
-    ESP_LOGD(TAG, "Delay for 10 seconds");
-    vTaskDelay(pdMS_TO_TICKS(10000));   //Delay for 10 seconds
-    ESP_LOGD(TAG, "Stop networking stack");
-    // stopNetworkAndProvisioning();
+    ESP_LOGD(TAG, "Starting tasks and Task Watch Dog");
+    createTasks();
+    ESP_LOGD(TAG, "Dummy Delay for 120 seconds");
+    vTaskDelay(pdMS_TO_TICKS(120000));   //Delay for 120 seconds
     ESP_LOGI(TAG, "Shut Down");
-    ESP_LOGD(TAG, "Deinitialize networking stack");
-    stopNetworkAndProvisioning();
     ESP_LOGD(TAG, "Deleting tasks and Task Watch Dog ");
     deleteTasks();
+    ESP_LOGD(TAG, "Deinitialize networking stack");
+    deInitNetworkAndProvisioning();
     ESP_LOGI(TAG, "Complete");
 }
