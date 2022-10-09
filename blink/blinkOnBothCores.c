@@ -22,7 +22,7 @@
   - GPIO5 Display backlight
 */
 
-TaskHandle_t Task1, Task2;
+TaskHandle_t Task0, Task1;
 SemaphoreHandle_t mutexReceive;
 
 /*** you may use section "Blink Configuration" in Kconfig.projbuild file or define it here ***/
@@ -32,11 +32,11 @@ SemaphoreHandle_t mutexReceive;
 #ifndef CONFIG_BLINK_TASK_1_STACKSIZE
 #define CONFIG_BLINK_TASK_1_STACKSIZE 1792 // actually something between 1536 and 1792
 #endif
-#ifndef CONFIG_BLINK_GPIO_1 
-#define CONFIG_BLINK_GPIO_1 0
+#ifndef CONFIG_BLINK_GPIO_0 
+#define CONFIG_BLINK_GPIO_0 0
 #endif
-#ifndef CONFIG_BLINK_GPIO_2 
-#define CONFIG_BLINK_GPIO_2 2 // 2 = LED_BUILTIN on ESP32 boards
+#ifndef CONFIG_BLINK_GPIO_1 
+#define CONFIG_BLINK_GPIO_1 2 // 2 = LED_BUILTIN on ESP32 boards
 #endif
 
 int counter = 0;
@@ -52,6 +52,17 @@ void blink(uint8_t pin, TickType_t duration) {
   vTaskDelay(pdMS_TO_TICKS(duration));
 }
 
+void codeForTask0( void * parameter )
+{
+  for (;;) {
+    printf("Counter on Task 0 (Core %d): %d\n", xPortGetCoreID(), counter);
+    xSemaphoreTake( mutexReceive, portMAX_DELAY );
+    counter++;
+    blink(CONFIG_BLINK_GPIO_0, 1000);
+    xSemaphoreGive( mutexReceive );
+    // vTaskDelay(pdMS_TO_TICKS(50));
+  }
+}
 void codeForTask1( void * parameter )
 {
   for (;;) {
@@ -59,17 +70,6 @@ void codeForTask1( void * parameter )
     xSemaphoreTake( mutexReceive, portMAX_DELAY );
     counter++;
     blink(CONFIG_BLINK_GPIO_1, 1000);
-    xSemaphoreGive( mutexReceive );
-    // vTaskDelay(pdMS_TO_TICKS(50));
-  }
-}
-void codeForTask2( void * parameter )
-{
-  for (;;) {
-    printf("Counter on Task 2 (Core %d): %d\n", xPortGetCoreID(), counter);
-    xSemaphoreTake( mutexReceive, portMAX_DELAY );
-    counter++;
-    blink(CONFIG_BLINK_GPIO_2, 1000);
     xSemaphoreGive( mutexReceive );
     // vTaskDelay(pdMS_TO_TICKS(50));
   }
@@ -82,31 +82,31 @@ void app_main()
       Technical Reference for a list of pads and their default
       functions.)
   */
+  gpio_pad_select_gpio(CONFIG_BLINK_GPIO_0);
   gpio_pad_select_gpio(CONFIG_BLINK_GPIO_1);
-  gpio_pad_select_gpio(CONFIG_BLINK_GPIO_2);
   /* Set the GPIO as a push/pull output */
+  gpio_set_direction(CONFIG_BLINK_GPIO_0, GPIO_MODE_OUTPUT);
   gpio_set_direction(CONFIG_BLINK_GPIO_1, GPIO_MODE_OUTPUT);
-  gpio_set_direction(CONFIG_BLINK_GPIO_2, GPIO_MODE_OUTPUT);
   /* Create the Semaphore */
   mutexReceive = xSemaphoreCreateMutex();
   /* Create task on core 0 */
   xTaskCreatePinnedToCore(
-    &codeForTask1,
+    &codeForTask0,
     "BLINK_Task_0",
     CONFIG_BLINK_TASK_0_STACKSIZE,
     NULL,
     1,
-    &Task1,
+    &Task0,
     0
   );
   /* Create task on core 1 */
   xTaskCreatePinnedToCore(
-    &codeForTask2,
+    &codeForTask1,
     "BLINK_Task_1",
     CONFIG_BLINK_TASK_1_STACKSIZE,
     NULL,
     1,
-    &Task2,
+    &Task1,
     1
   );
 }

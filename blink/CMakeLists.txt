@@ -1,4 +1,5 @@
 set(COMPONENT_SRCS "blinkOnBothCores.c")
 # set(COMPONENT_ADD_INCLUDEDIRS ".")
-
-register_component()
+cmake_minimum_required(VERSION 3.16)
+project("BlinkOnBothCores")
+# register_component()
